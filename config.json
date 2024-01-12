@@ -3,18 +3,9 @@
     "ID": 1,
     "Payload": {
       "Method": "GET",
-      "URL": "https://api.example.com/endpoint",
+      "URL": "https://rickandmortyapi.com/api/character/0",
       "Headers": {"Content-Type": "application/json"},
-      "Body": "{abc}"
-    }
-  },
-    {
-    "ID": 2,
-    "Payload": {
-      "Method": "POST",
-      "URL": "https://api.teste.com/",
-      "Headers": {"Content-Type": "application/json"},
-      "Body": "{abc}"
+      "Body": "{}"
     }
   }
 ]
