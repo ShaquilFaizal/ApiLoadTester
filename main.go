@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"sync"
+	"time"
 )
 
 type RequestPayload struct {
@@ -20,6 +21,15 @@ type Config struct {
 	ID      int            `json:"ID"`
 	Payload RequestPayload `json:"Payload"`
 }
+
+type Statistics struct {
+	TotalRequests      int
+	FailedRequests     int
+	SuccessfulRequests int
+	RequestsPerSecond  float64
+}
+
+var statistics = Statistics{}
 
 func main() {
 
@@ -42,6 +52,7 @@ func main() {
 	}
 
 	var wg sync.WaitGroup
+	startTime := time.Now()
 
 	for i := 0; i < requestCount; i++ {
 		wg.Add(1)
@@ -53,34 +64,14 @@ func main() {
 		}
 
 		for _, config := range configs {
-			fmt.Printf("ID: %d, Method: %s, URL: %s\n ", config.ID, config.Payload.Method, config.Payload.URL)
-
 			if concurrent {
 				go func(url string) {
-
-					resp, err := http.Get(url)
-					if err != nil {
-						fmt.Println("Error making HTTP request", err)
-						return
-					}
-
-					defer resp.Body.Close()
-
-					fmt.Println("HTTP Response Status: ", resp.Status)
+					defer wg.Done()
+					makeRequest(url)
 				}(config.Payload.URL)
 			} else {
-
-				resp, err := http.Get(config.Payload.URL)
-				if err != nil {
-					fmt.Println("Error making HTTP request", err)
-					return
-				}
-
-				defer resp.Body.Close()
-
-				fmt.Println("HTTP Response Status: ", resp.Status)
+				makeRequest(config.Payload.URL)
 			}
-
 		}
 	}
 
@@ -88,4 +79,39 @@ func main() {
 		wg.Wait()
 	}
 
+	elapsedTime := time.Since(startTime).Seconds()
+	printStatistics(elapsedTime)
+
+}
+
+func makeRequest(url string) {
+	statistics.TotalRequests++
+
+	resp, err := http.Get(url)
+	if err != nil {
+		fmt.Println("Error making HTTP request", err)
+		statistics.FailedRequests++
+		return
+	}
+
+	defer resp.Body.Close()
+
+	statisticsUpdateTimings(resp.StatusCode)
+}
+
+func printStatistics(elapsedTime float64) {
+
+	statistics.RequestsPerSecond = float64(statistics.TotalRequests) / elapsedTime
+
+	fmt.Println("Results ...")
+	fmt.Printf("  Total Requests .......................: %d\n", statistics.TotalRequests)
+	fmt.Printf("  Total Successful Requests (2XX).......................: %d\n", statistics.SuccessfulRequests)
+	fmt.Printf("  Failed Requests (5XX).......................: %d\n", statistics.FailedRequests)
+	fmt.Printf("  Requests Per Second.......................: %.2f\n", statistics.RequestsPerSecond)
+}
+
+func statisticsUpdateTimings(statusCode int) {
+	if statusCode >= 200 && statusCode < 300 {
+		statistics.SuccessfulRequests++
+	}
 }
